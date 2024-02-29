@@ -16,7 +16,6 @@ def train(args):
     optimizer = torch.optim.Adam(model.parameters(), lr = 0.000095)
     num_epoch = 40
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
     train_data = load_dense_data('dense_data/train')
     valid_data = load_dense_data('dense_data/valid')
     train_logger, valid_logger = None, None
