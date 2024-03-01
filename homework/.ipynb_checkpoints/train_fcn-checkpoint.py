@@ -3,7 +3,7 @@ import numpy as np
 from datetime import datetime
 import torch.nn as nn
 from .models import FCN, save_model
-import torch.optim.lr_scheduler as lr_scheduler
+import torch.optim.lr_scheduler as lr_scheduler 
 from .utils import load_dense_data,accuracy ,DENSE_CLASS_DISTRIBUTION, ConfusionMatrix
 from . import dense_transforms
 import torch.utils.tensorboard as tb
@@ -20,7 +20,7 @@ def train(args):
     num_epoch = 40
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_data = load_dense_data('dense_data/train')
-    #valid_data = load_dense_data('dense_data/valid')
+    valid_data = load_dense_data('dense_data/valid')
     train_logger, valid_logger = None, None
     if args.log_dir is not None:
 
@@ -31,8 +31,10 @@ def train(args):
         current_time = now.strftime("%H:%M:%S")
         print("Current Time =", current_time)
         acc_vals = []
+        validation = []
         model.train()
         for img, label in train_data:
+            img, label = img.to(device), label.to(device)
             logit = model(img)
             loss_val = criterion(logit, label.long())
             acc_val = accuracy(logit, label)
@@ -46,13 +48,20 @@ def train(args):
         if valid_logger:
             valid_logger.add_scalar('accuracy', avg_acc, global_step)
         model.eval()
-        acc_vals = []
+        for img, label in valid_data:
+            img, label = img.to(device), label.to(device)
+            validation.append(accuracy(model(img), label).detach().cpu().numpy())
+        validation_acc = sum(validation) / len(validation)
+        if valid_logger: 
+            valid_logger.add_scalar('accuracy', avg_vacc, global_step)
 
         if valid_logger:
             valid_logger.add_scalar('accuracy', avg_vacc, global_step)
 
         if valid_logger is None or train_logger is None:
-            print('epoch %-3d \t acc = %0.3f \t val acc = %0.3f' % (epoch, avg_acc, avg_acc))
+            print('epoch %-3d \t acc = %0.3f \t val acc = %0.3f ' % (epoch, avg_acc, validation_acc))
+        save_model(model)
+    save_model(model)
 
 
     """
