@@ -34,19 +34,53 @@ def save_model(model):
     raise ValueError("model type '%s' not supported!" % str(type(model)))
 
 
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, stride=1):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.downsample = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, padding=0),
+            nn.BatchNorm2d(out_channels)
+        ) if stride != 1 or in_channels != out_channels else None
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+
 class FCN(nn.Module):
     def __init__(self, in_channels=3, num_classes=5, dropout_rate=0.5):
         super(FCN, self).__init__()
         # Encoder
-        self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
 
+        # Bottleneck
 
-        self.dec1 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1, padding=1)  # Concatenate with skip connection
+
+        # Decoder with skip connections
+        self.dec1 = nn.ConvTranspose2d(128, 64, kernel_size=3, stride=1, padding=1)  # Concatenate with skip connection
         self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
-        self.dec2 = nn.ConvTranspose2d(32 , num_classes, kernel_size=3, stride=1,
+        self.dec2 = nn.ConvTranspose2d(64 , num_classes, kernel_size=3, stride=1,
                                padding=1)  # Concatenate with skip connection
 
     def forward(self, x):
@@ -58,7 +92,7 @@ class FCN(nn.Module):
             x2 = x1
 
         x3 = self.relu(self.conv2(x2))
-        x5 = self.dec1(x3)
+        x5 = self.relu(self.dec1(x3))
         skip_connection1 = torch.cat((x2,x5),dim=1)
         skip_connection1_dec1 = self.dec1(skip_connection1)
         if x.size(2) > 2 and x.size(3) > 2:

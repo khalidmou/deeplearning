@@ -15,14 +15,12 @@ def train(args):
     criterion = nn.CrossEntropyLoss()
     model = FCN()
     global_step = 0
-    
-    optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
-    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.5, total_iters=40)
+    optimizer = torch.optim.Adam(model.parameters(), lr = 0.000095)
+    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.5, total_iters=30)
     num_epoch = 40
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    train_data = load_dense_data('dense_data/valid')
-    valid_data = load_dense_data('dense_data/train')
+    train_data = load_dense_data('dense_data/train')
+    valid_data = load_dense_data('dense_data/valid')
     train_logger, valid_logger = None, None
     if args.log_dir is not None:
 
