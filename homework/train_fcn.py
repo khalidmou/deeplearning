@@ -17,12 +17,12 @@ def train(args):
     global_step = 0
     
     optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
-    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.5, total_iters=30)
+    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.5, total_iters=40)
     num_epoch = 40
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-    train_data = load_dense_data('dense_data/train')
-    valid_data = load_dense_data('dense_data/valid')
+    train_data = load_dense_data('dense_data/valid')
+    valid_data = load_dense_data('dense_data/train')
     train_logger, valid_logger = None, None
     if args.log_dir is not None:
 
@@ -37,12 +37,6 @@ def train(args):
         model.train()
         for img, label in train_data:
             img, label = img.to(device), label.to(device)
-            transforms = v2.Compose([
-                v2.RandomHorizontalFlip(p=0.7),
-                v2.ColorJitter(brightness=(0.5, 1.5),  saturation=(0.5, 1.5)),
-                v2.ToDtype(torch.float32, scale=True),
-            ])
-            img = transforms(img)
             logit = model(img)
             loss_val = criterion(logit, label.long())
             acc_val = accuracy(logit, label)

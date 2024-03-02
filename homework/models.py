@@ -37,29 +37,37 @@ def save_model(model):
 class FCN(nn.Module):
     def __init__(self, in_channels=3, num_classes=5, dropout_rate=0.5):
         super(FCN, self).__init__()
-
+        # Encoder
         self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
         self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        self.dec1 = nn.ConvTranspose2d(64, 34, kernel_size=3, stride=1, padding=1)  # Concatenate with skip connection
-        self.dec2 = nn.ConvTranspose2d(34 , num_classes, kernel_size=3, stride=1,
+
+        self.dec1 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1, padding=1)  # Concatenate with skip connection
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
+        self.dec2 = nn.ConvTranspose2d(32 , num_classes, kernel_size=3, stride=1,
                                padding=1)  # Concatenate with skip connection
 
     def forward(self, x):
 
         x1 = self.relu(self.conv1(x))
         if x.size(2) > 2 and x.size(3) > 2:
-            x2 = self.relu(self.conv2(x1))
+            x2 = self.maxpool(x1)
         else :
             x2 = x1
 
-        x3 = self.relu(self.dec1(x2))
-
-        skip_connection1 = torch.cat((x2,x3),dim=1)
-
-        x4 = self.relu(self.dec1(skip_connection1))
-        return self.dec2(x4)
+        x3 = self.relu(self.conv2(x2))
+        x5 = self.dec1(x3)
+        skip_connection1 = torch.cat((x2,x5),dim=1)
+        skip_connection1_dec1 = self.dec1(skip_connection1)
+        if x.size(2) > 2 and x.size(3) > 2:
+            x6 = self.upsample(skip_connection1_dec1)
+        else:
+            x6 = x5
+        skip_connection2 = torch.cat((x1, x6), dim=1)
+        x7 = self.dec1(skip_connection2)
+        return self.dec2(x7)
 
 
 model_factory = {
