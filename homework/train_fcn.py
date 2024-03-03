@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from datetime import datetime
 import torch.nn as nn
-from .models import FCN, save_model
+from .models import FCN, save_model, load_model
 import torch.optim.lr_scheduler as lr_scheduler 
 from .utils import load_dense_data,accuracy ,DENSE_CLASS_DISTRIBUTION, ConfusionMatrix
 from . import dense_transforms
@@ -13,12 +13,12 @@ from torchvision.transforms import v2
 def train(args):
     from os import path
     criterion = nn.CrossEntropyLoss()
-    model = FCN()
     global_step = 0
-    optimizer = torch.optim.Adam(model.parameters(), lr = 0.000095)
-    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.5, total_iters=30)
-    num_epoch = 40
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = FCN().to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
+    num_epoch = 45
+
     train_data = load_dense_data('dense_data/train')
     valid_data = load_dense_data('dense_data/valid')
     train_logger, valid_logger = None, None
@@ -35,7 +35,12 @@ def train(args):
         model.train()
         for img, label in train_data:
             img, label = img.to(device), label.to(device)
-            logit = model(img)
+            transform = v2.Compose([
+                v2.RandomHorizontalFlip(p=0.5),
+                v2.RandomVerticalFlip(p=0.5),
+                v2.ColorJitter(brightness=(0.5, 1.5), contrast=(1), saturation=(0.5, 1.5), hue=(-0.1, 0.1)),
+                v2.ToDtype(torch.float32, scale=True),])
+            logit = model(transform(img))
             loss_val = criterion(logit, label.long())
             acc_val = accuracy(logit, label)
             optimizer.zero_grad()
@@ -43,20 +48,22 @@ def train(args):
             optimizer.step()
             global_step += 1
             acc_vals.append(acc_val.detach().cpu().numpy())
-        scheduler.step()
         avg_acc = sum(acc_vals) / len(acc_vals)
         if valid_logger:
             valid_logger.add_scalar('accuracy', avg_acc, global_step)
         model.eval()
+        confmat = ConfusionMatrix(size=5)
         for img, label in valid_data:
             img, label = img.to(device), label.to(device)
             validation.append(accuracy(model(img), label).detach().cpu().numpy())
+            confmat.add(preds=model(img).argmax(1), labels=label)
+        print(f"class_accuracy:{confmat.average_accuracy}")
         validation_acc = sum(validation) / len(validation)
         if valid_logger: 
-            valid_logger.add_scalar('accuracy', avg_vacc, global_step)
+            valid_logger.add_scalar('accuracy', validation_acc, global_step)
 
         if valid_logger:
-            valid_logger.add_scalar('accuracy', avg_vacc, global_step)
+            valid_logger.add_scalar('accuracy', validation_acc, global_step)
 
         if valid_logger is None or train_logger is None:
             print('epoch %-3d \t acc = %0.3f \t val acc = %0.3f ' % (epoch, avg_acc, validation_acc))

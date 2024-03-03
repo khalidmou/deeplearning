@@ -1,4 +1,4 @@
-from .models import CNNClassifier, save_model
+from .models import CNNClassifier, save_model, load_model
 from .utils import ConfusionMatrix, accuracy, load_data, LABEL_NAMES
 import torch
 import torchvision
