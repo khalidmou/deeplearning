@@ -52,7 +52,7 @@ class Block(nn.Module):
 
 class FCN(nn.Module):
     def __init__(
-            self, in_channels=3, out_channels=5, features=[64, 128, 256, 512],
+            self, in_channels=3, out_channels=5, features=[64, 128],
     ):
         super(FCN, self).__init__()
         self.ups = nn.ModuleList()
