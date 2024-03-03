@@ -35,11 +35,8 @@ def train(args):
             current_time = now.strftime("%H:%M:%S")
             print("Current Time =", current_time)
             img, label = img.to(device), label.to(device)
-            transform = v2.Compose([
-                v2.RandomHorizontalFlip(p=0.5),
-                v2.ColorJitter(brightness=(0.5, 1.5), saturation=(0.5, 1.5)),
-                v2.ToDtype(torch.float32, scale=True)])
-            logit = model(transform(img))
+
+            logit = model(img)
             loss_val = criterion(logit, label.long())
             acc_val = accuracy(logit, label)
             optimizer.zero_grad()
