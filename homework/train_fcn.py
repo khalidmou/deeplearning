@@ -15,7 +15,7 @@ def train(args):
     criterion = nn.CrossEntropyLoss()
     global_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = FCN()
+    model = FCN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
     num_epoch = 45
     print()
@@ -34,8 +34,12 @@ def train(args):
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             print("Current Time =", current_time)
-
-            logit = model(img)
+            img, label = img.to(device), label.to(device)
+            transform = v2.Compose([
+                v2.RandomHorizontalFlip(p=0.5),
+                v2.ColorJitter(brightness=(0.5, 1.5), saturation=(0.5, 1.5)),
+                v2.ToDtype(torch.float32, scale=True)])
+            logit = model(transform(img))
             loss_val = criterion(logit, label.long())
             acc_val = accuracy(logit, label)
             optimizer.zero_grad()
@@ -50,7 +54,7 @@ def train(args):
         model.eval()
         confmat = ConfusionMatrix(size=5)
         for img, label in valid_data:
-
+            img, label = img.to(device), label.to(device)
             validation.append(accuracy(model(img), label).detach().cpu().numpy())
             confmat.add(preds=model(img).argmax(1), labels=label)
         print(f"class_accuracy:{confmat.average_accuracy}")
