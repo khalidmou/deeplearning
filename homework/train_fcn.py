@@ -18,7 +18,7 @@ def train(args):
     model = FCN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
     num_epoch = 45
-
+    print()
     train_data = load_dense_data('dense_data/train')
     valid_data = load_dense_data('dense_data/valid')
     train_logger, valid_logger = None, None
@@ -27,19 +27,18 @@ def train(args):
         train_logger = tb.SummaryWriter(path.join(args.log_dir, 'train'), flush_secs=1)
         valid_logger = tb.SummaryWriter(path.join(args.log_dir, 'valid'), flush_secs=1)
     for epoch in range(num_epoch):
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
-        print("Current Time =", current_time)
         acc_vals = []
         validation = []
         model.train()
         for img, label in train_data:
+            now = datetime.now()
+            current_time = now.strftime("%H:%M:%S")
+            print("Current Time =", current_time)
             img, label = img.to(device), label.to(device)
             transform = v2.Compose([
                 v2.RandomHorizontalFlip(p=0.5),
-                v2.RandomVerticalFlip(p=0.5),
-                v2.ColorJitter(brightness=(0.5, 1.5), contrast=(1), saturation=(0.5, 1.5), hue=(-0.1, 0.1)),
-                v2.ToDtype(torch.float32, scale=True),])
+                v2.ColorJitter(brightness=(0.5, 1.5), saturation=(0.5, 1.5)),
+                v2.ToDtype(torch.float32, scale=True)])
             logit = model(transform(img))
             loss_val = criterion(logit, label.long())
             acc_val = accuracy(logit, label)
@@ -48,6 +47,7 @@ def train(args):
             optimizer.step()
             global_step += 1
             acc_vals.append(acc_val.detach().cpu().numpy())
+        print("working")
         avg_acc = sum(acc_vals) / len(acc_vals)
         if valid_logger:
             valid_logger.add_scalar('accuracy', avg_acc, global_step)
